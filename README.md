@@ -1,1 +1,1 @@
-# StatisticalConsulting
+# Statistical Consulting
