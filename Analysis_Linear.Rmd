@@ -1,0 +1,392 @@
+---
+title: "ClientReport_MixedModel"
+author: "ESRA TURKHAN s3411893"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#Please adjust the directory according to your file location before running the code.
+```{r echo=TRUE}
+setwd("/Users/esrakasap/Desktop/adsız klasör/Statistical Consulting/Client Meetings")
+
+#install.packages("readxl")
+library(readxl)
+
+
+df = read_excel("Tree_Inoculation_Clean.xlsx" , sheet = 2)
+
+```
+
+# To see the data structure initially, let's take a look at the first 10 rows of our dataset.
+```{r echo=TRUE}
+head(df)
+```
+#Obtain a statistical summary for each column in our dataset.
+```{r echo=TRUE}
+df$leaves <- as.numeric(df$leaves)
+summary(df)
+
+```
+# Examine the distribution of leaf counts in each week across all datasets.
+```{r echo=TRUE}
+
+
+#install.packages("dplyr")
+library(dplyr)
+
+weekly_data <- df %>% group_by(measurement) %>% select(leaves)
+
+library(ggplot2)
+
+
+ggplot(weekly_data, aes(x = leaves)) +
+  geom_histogram(binwidth = 1, fill = "blue", color = "black") +
+  facet_wrap(~ measurement, scales = "free") +
+  labs(title = "Leaves Distribution by Week", x = "Number of Leaves", y = "Frequency")
+
+```
+#Examine the distribution of leaf counts in each week across all datasets.
+```{r echo=TRUE}
+ggplot(df, aes(x = as.factor(measurement), y = leaves)) +
+  geom_boxplot(fill = "blue", color = "black") +
+  labs(title = "Boxplot of Leaves by Week", x = "Week", y = "Number of Leaves") +
+  theme_minimal()
+```
+#Investigate how far the leaf count distributions deviate from a normal distribution.
+```{r echo=TRUE}
+ggplot(df, aes(sample = leaves)) +
+  geom_qq() +
+  geom_qq_line() +
+  facet_wrap(~measurement, scales = "free") +
+  labs(title = "QQ Plot of Leaves by Week")
+```
+
+#Check the missing values
+```{r echo=TRUE}
+missing_values = is.na(df)
+missing_count = colSums(missing_values)
+missing_count = as.data.frame(missing_count)
+print(missing_count ,n = 20)
+
+```
+# more detailed investigation on NA s in the Leaves column.
+```{r echo=TRUE}
+
+missing_count_in_Leaves <- sum(is.na(df$leaves))
+cat("Number NA in Leaves column:", missing_count_in_Leaves, "\n")
+
+#The number of NA values in the Leaves column when the Mortality column is 1.
+missing_count_in_Leaves_Mortality1 <- sum(is.na(df$leaves[df$mortality == 1]))
+cat("Number of NA when Mortality=1:", missing_count_in_Leaves_Mortality1, "\n")
+
+#The number of NA values in the Leaves column when the Mortality column is 0.
+missing_count_in_Leaves_Mortality0 <- sum(is.na(df$leaves[df$mortality == 0]))
+cat("Number of NA when Mortality=0 :", missing_count_in_Leaves_Mortality0, "\n")
+
+which(df$mortality == 0 & is.na(df$leaves))
+filtered_data <- df[df$mortality == 0 & is.na(df$leaves), ]
+print(filtered_data)
+
+```
+
+#Remove the columns taht mortality=0 and Leaves=NA 
+```{r echo=TRUE}
+
+df <- filter(df, !(mortality == 0 & is.na(leaves)))
+
+```
+
+
+#Mean of leaves counts per week for each isolate
+```{r echo=TRUE}
+
+
+Leaves_mean <- aggregate(leaves ~ treatment + isolate + measurement + SET, data = df, mean)
+
+print(Leaves_mean)
+
+````
+
+# Weekly change on the leaves count in set3
+```{r echo=TRUE}
+# ggplot2 paketini yükle
+library(ggplot2)
+
+
+
+# ggplot ile spaghetti plot'u oluştur
+ggplot(Leaves_mean[which(Leaves_mean$SET==3), ], aes(x = measurement, y = leaves, color = isolate, linetype = treatment)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~isolate, scales = "free_y") +
+  
+  geom_vline(xintercept = c(5, 8), color = "red", size = 0.5) +
+  
+  
+  labs(title = "Spaghetti Plot -SET3-",
+       x = "Measurement Time",
+       y = "Leaf Count",
+       color = "Isolate",
+       linetype = "Treatment")
+
+
+```
+
+
+
+# Weekly change on the leaves count in set4
+```{r echo=TRUE}
+# ggplot2 paketini yükle
+library(ggplot2)
+
+
+
+# ggplot ile spaghetti plot'u oluştur
+ggplot(Leaves_mean[which(Leaves_mean$SET==4), ], aes(x = measurement, y = leaves, color = isolate, linetype = treatment)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~isolate, scales = "free_y") +
+  
+  geom_vline(xintercept = c(4, 10), color = "red", size = 0.5) +
+  
+  labs(title = "Spaghetti Plot -SET4-",
+       x = "Measurement Time",
+       y = "Leaf Count",
+       color = "Isolate",
+       linetype = "Treatment")
+
+
+```
+# Weekly change on the leaves count in set5
+```{r echo=TRUE}
+# ggplot2 paketini yükle
+library(ggplot2)
+
+
+
+# ggplot ile spaghetti plot'u oluştur
+ggplot(Leaves_mean[which(Leaves_mean$SET==5), ], aes(x = measurement, y = leaves, color = isolate, linetype = treatment)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~isolate, scales = "free_y") +
+  
+  geom_vline(xintercept = c(4, 10), color = "red", size = 0.5) +
+  
+  labs(title = "Spaghetti Plot -SET5-",
+       x = "Measurement Time",
+       y = "Leaf Count",
+       color = "Isolate",
+       linetype = "Treatment")
+
+
+```
+# Weekly change on the leaves count in set6
+```{r echo=TRUE}
+# ggplot2 paketini yükle
+library(ggplot2)
+
+
+
+# ggplot ile spaghetti plot'u oluştur
+ggplot(Leaves_mean[which(Leaves_mean$SET==6), ], aes(x = measurement, y = leaves, color = isolate, linetype = treatment)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~isolate, scales = "free_y") +
+  
+  geom_vline(xintercept = c(4, 10), color = "red", size = 0.5) +
+  
+  labs(title = "Spaghetti Plot -SET6-",
+       x = "Measurement Time",
+       y = "Leaf Count",
+       color = "Isolate",
+       linetype = "Treatment")
+
+
+```
+# Weekly change on the leaves count in set7
+```{r echo=TRUE}
+# ggplot2 paketini yükle
+library(ggplot2)
+
+
+
+# ggplot ile spaghetti plot'u oluştur
+ggplot(Leaves_mean[which(Leaves_mean$SET==7), ], aes(x = measurement, y = leaves, color = isolate, linetype = treatment)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~isolate, scales = "free_y") +
+  
+  geom_vline(xintercept = c(4, 10), color = "red", size = 0.5) +
+  
+  labs(title = "Spaghetti Plot -SET7-",
+       x = "Measurement Time",
+       y = "Leaf Count",
+       color = "Isolate",
+       linetype = "Treatment")
+
+
+```
+# Weekly change on the leaves count in set8
+```{r echo=TRUE}
+# ggplot2 paketini yükle
+library(ggplot2)
+
+
+
+# ggplot ile spaghetti plot'u oluştur
+ggplot(Leaves_mean[which(Leaves_mean$SET==8), ], aes(x = measurement, y = leaves, color = isolate, linetype = treatment)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~isolate, scales = "free_y") +
+  
+  geom_vline(xintercept = c(4, 10), color = "red", size = 0.5) +
+  
+  labs(title = "Spaghetti Plot -SET8-",
+       x = "Measurement Time",
+       y = "Leaf Count",
+       color = "Isolate",
+       linetype = "Treatment")
+
+
+```
+
+
+# Weekly change on the leaves count in set9
+```{r echo=TRUE}
+# ggplot2 paketini yükle
+library(ggplot2)
+
+
+
+# ggplot ile spaghetti plot'u oluştur
+ggplot(Leaves_mean[which(Leaves_mean$SET==9), ], aes(x = measurement, y = leaves, color = isolate, linetype = treatment)) +
+  geom_line() +
+  geom_point() +
+  facet_wrap(~isolate, scales = "free_y") +
+  
+  geom_vline(xintercept = c(4, 10), color = "red", size = 0.5) +
+  
+  labs(title = "Spaghetti Plot -SET9-",
+       x = "Measurement Time",
+       y = "Leaf Count",
+       color = "Isolate",
+       linetype = "Treatment")
+
+
+```
+# Fill the NA with 0 in the Leaves column.
+```{r echo=TRUE}
+
+df$leaves[is.na(df$leaves)] <- 0
+
+```
+
+#Filter the drought treatment weeks per each set
+```{r echo=TRUE}
+#install.packages("dplyr")
+library(dplyr)
+
+
+df_new <- df %>%
+  filter((SET == 3 & measurement %in% c(5, 6, 7, 8)) |
+         (SET != 3 & measurement %in% c(4, 5, 6, 7, 8, 9, 10)))
+
+
+```
+
+#Inversigate the distribution of leaves count during the drought treatment
+```{r echo=TRUE}
+#hist(df$leaves, main = "Distribution of Leaves", xlab = "Number of Leaves")
+
+#install.packages("dplyr")
+library(dplyr)
+
+weekly_data_new <- df_new %>% group_by(measurement) %>% select(leaves)
+
+library(ggplot2)
+
+
+ggplot(weekly_data_new, aes(x = leaves)) +
+  geom_histogram(binwidth = 1, fill = "blue", color = "black") +
+  facet_wrap(~ measurement, scales = "free") +
+  labs(title = "Leaves Distribution by Week", x = "Number of Leaves", y = "Frequency")
+
+```
+# Apply mixed model (isolate and treatment are fixed effects. SET is a rabdom effect)
+```{r echo=TRUE}
+#install.packages("lme4")
+#install.packages("lmerTest")
+library("lmerTest")
+library(lme4)
+
+
+lmer_model_leaves <- lmer(leaves ~ isolate * treatment + (1 | SET) , data = df_new)
+summary(lmer_model_leaves)
+
+fixed_effect_table = summary(lmer_model_leaves)$coefficients
+
+```
+
+
+
+
+
+# Order the isolte : 1) With respect to amount of their contribution on drougt resistance : 2) With respect to their significance
+```{r echo=TRUE}
+fixed_effect_table = as.data.frame(fixed_effect_table)
+isolate_table_leaves = head(fixed_effect_table, 73)
+top_rows_estimate_leaves <- isolate_table_leaves[order(isolate_table_leaves$Estimate, decreasing = TRUE), ][1:14, ]
+top_rows_pValue_leaves <- isolate_table_leaves[order(isolate_table_leaves$`Pr(>|t|)`, decreasing = FALSE), ][1:100, ]
+
+
+top_rows_estimate_leaves = as.data.frame(top_rows_estimate_leaves)
+print(top_rows_estimate_leaves,n=14)
+
+print(top_rows_pValue_leaves)
+
+
+```
+
+#########  EXTRA ANALYSIS TO INVESTIGATE OTHER FEATURES LIKE HEIGHT - ROOT FEATURES - SPAD ###########
+
+
+#HEIGHT ANALYSIS
+```{r echo=TRUE}
+#install.packages("lme4")
+#install.packages("lmerTest")
+library("lmerTest")
+library(lme4)
+
+df_new$height = as.numeric(df_new$height)
+lmer_model_height <- lmer(height ~ isolate * treatment + (1 | SET) , data = df_new)
+summary(lmer_model_height)
+
+fixed_effect_table_height = summary(lmer_model_height)$coefficients
+
+```
+
+```{r echo=TRUE}
+fixed_effect_table_height = as.data.frame(fixed_effect_table_height)
+isolate_table_height = head(fixed_effect_table_height, 73)
+top_rows_estimate_height <- isolate_table_height[order(isolate_table_height$Estimate, decreasing = TRUE), ]
+top_rows_pValue_height <- isolate_table_height[order(isolate_table_height$`Pr(>|t|)`, decreasing = FALSE), ]
+
+
+top_rows_estimate_height = as.data.frame(top_rows_estimate_height)
+print(top_rows_estimate_height,n=14)
+
+print(top_rows_pValue_height)
+
+
+```
+
+
+
+
+
+
+

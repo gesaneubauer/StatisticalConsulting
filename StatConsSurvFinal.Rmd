@@ -1,0 +1,398 @@
+---
+title: "StCon"
+output: html_document
+date: "2023-11-24"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+install.packages("broom")
+options(scipen = 999)
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(caret)
+library(ggplot2)
+library(coxme)
+library(survival)
+library(nlme)
+library(Matrix)
+library(corrplot)
+library(survminer)
+library(broom)
+library(RColorBrewer)
+library(knitr)
+library(kableExtra)
+
+dataset <- read_excel("Tree_Inoculation_Clean.xlsx", 
+                                        sheet = "CLEAN")
+head(dataset)
+str(dataset)
+summary(dataset)
+head(dataset)
+
+# Count missing values
+sapply(dataset, function(x) sum(is.na(x)))
+
+# List with unique values
+list_unique <- lapply(dataset, unique)
+list_unique
+
+# Number of isolates
+length(unique(dataset$isolate))
+
+
+```
+
+
+
+```{r}
+dataset$SET <- as.factor(dataset$SET)
+
+dataset$forest <- as.factor(dataset$forest)
+dataset$microbe <- as.factor(dataset$microbe)
+dataset$isolate <- as.factor(dataset$isolate)
+dataset$pot <- as.factor(dataset$pot)
+dataset$tree <- as.numeric(dataset$tree)
+dataset$treatment <- as.factor(dataset$treatment)
+dataset$measurement <- as.numeric(dataset$measurement)
+dataset$height <- as.numeric(dataset$height)
+dataset$leaves <- as.numeric(dataset$leaves)
+dataset$mortality <- as.numeric(dataset$mortality)
+
+dataset$SPAD <- as.numeric(dataset$SPAD)
+dataset$penetrometer <- as.numeric(dataset$penetrometer)
+dataset$fresh_weight <- as.factor(dataset$fresh_weight)
+dataset$dry_stem <- as.factor(dataset$dry_stem)
+dataset$dry_roots <- as.factor(dataset$dry_roots)
+dataset$root_length <- as.factor(dataset$root_length)
+dataset$root_volume <- as.factor(dataset$root_volume)
+dataset$fine_roots <- as.factor(dataset$fine_roots)
+
+str(dataset)
+View(dataset)
+
+sapply(dataset, function(x) sum(is.na(x)))
+
+# Replace Missing Values with 0
+dataset$height[is.na(dataset$height)] <- 0
+dataset$leaves[is.na(dataset$leaves)] <- 0
+
+
+
+```
+
+
+```{r}
+numeric_dataset <- select_if(dataset, is.numeric)
+
+cor_matrix <- cor(numeric_dataset, use = "pairwise.complete.obs")
+cor_matrix
+
+# Plot 
+corrplot(cor_matrix, method = "color", type = "upper", tl.col = "black", tl.srt = 45)
+
+```
+
+```{r}
+# Fit Kaplan-Meier Model Treatment
+fit <- survfit(Surv(time = dataset$measurement, event = dataset$mortality) ~ treatment, data = dataset)
+fit_df <- tidy(fit, conf.int = TRUE)
+
+summary(fit)$table
+
+ggplot(fit_df, aes(x = time, y = estimate, color = strata)) +
+    geom_step() +
+    geom_step(aes(ymin = conf.low, ymax = conf.high), stat = "identity", alpha = 0.3) + 
+    scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.1)) + 
+    scale_x_continuous(breaks = seq(0, max(fit_df$time), by = 2)) +  
+    scale_color_brewer(palette = "Set2") +  
+    labs(title = "Kaplan-Meier Survival Curve",
+         subtitle = "Comparing Microbes",
+         x = "Time (measurement in weeks)",
+         y = "Survival Probability",
+         color = "Treatment") +
+    theme_minimal(base_size = 14) + 
+    theme(legend.position = "bottom", 
+          plot.title = element_text(face = "bold", hjust = 0.5), 
+          plot.subtitle = element_text(hjust = 0.5)) 
+
+```
+
+```{r}
+
+# Fit Kaplan-Meier Model Microbes
+fit <- survfit(Surv(time = dataset$measurement, event = dataset$mortality) ~ microbe, data = dataset)
+fit_df <- tidy(fit, conf.int = TRUE)
+
+summary(fit)$table
+
+ggplot(fit_df, aes(x = time, y = estimate, color = strata)) +
+    geom_step() +
+    geom_step(aes(ymin = conf.low, ymax = conf.high), stat = "identity", alpha = 0.3) + 
+    scale_y_continuous(limits = c(0, 1), breaks = seq(0, 1, by = 0.1)) + 
+    scale_x_continuous(breaks = seq(0, max(fit_df$time), by = 2)) +  
+    scale_color_brewer(palette = "Set2") +  
+    labs(title = "Kaplan-Meier Survival Curve",
+         subtitle = "Comparing Microbes",
+         x = "Time (measurement in weeks)",
+         y = "Survival Probability",
+         color = "Treatment") +
+    theme_minimal(base_size = 14) + 
+    theme(legend.position = "bottom", 
+          plot.title = element_text(face = "bold", hjust = 0.5), 
+          plot.subtitle = element_text(hjust = 0.5)) 
+
+```
+
+### Microbe 
+
+```{r}
+
+dataset$SurvObj <- with(dataset, Surv(measurement, mortality))
+
+model_null_mi <- coxme(SurvObj ~ treatment + microbe + (1|SET), data = dataset)
+model_inter_mi <- coxme(SurvObj ~ treatment * microbe + (1|SET), data = dataset)
+
+
+```
+
+```{r}
+# Marginal Model
+summary(model_null_mi)
+```
+
+```{r}
+# Enhanced Table Null Microbes
+
+coefficients <- coef(model_null_mi)
+se_coefficients <- sqrt(diag(vcov(model_null_mi)))
+
+p_values <- c(treatmentwater = 0.0000000,
+              microbeC = 0.0000059,       
+              microbefungi = 0.0001200)
+
+hr <- exp(coefficients)
+
+conf_int_lower <- exp(coefficients - 1.96 * se_coefficients)
+conf_int_upper <- exp(coefficients + 1.96 * se_coefficients)
+
+hr_table <- data.frame(
+  HazardRatio = hr,
+  CI_lower = conf_int_lower,
+  CI_upper = conf_int_upper,
+  P_value = p_values
+)
+
+hr_table
+
+```
+
+
+```{r}
+# Interaction Model
+summary(model_inter_mi)
+```
+
+```{r}
+# Enhanced Table Inter Microbes
+coefficients <- coef(model_inter_mi)
+se_coefficients <- sqrt(diag(vcov(model_inter_mi)))
+
+p_values <- c(treatmentwater = 0.0000000,
+              microbeC = 0.0000013,        
+              microbefungi = 0.0000310,     
+              treatmentwater_microbeC = 0.0038000,    
+              treatmentwater_microbefungi = 0.0000200)
+
+hr <- exp(coefficients)
+
+conf_int_lower <- exp(coefficients - 1.96 * se_coefficients)
+conf_int_upper <- exp(coefficients + 1.96 * se_coefficients)
+
+hr_table2 <- data.frame(
+  HazardRatio = hr,
+  CI_lower = conf_int_lower,
+  CI_upper = conf_int_upper,
+  P_value = p_values
+)
+
+hr_table2
+
+
+```
+
+
+```{r}
+# Model Comparison
+anova(model_null_mi, model_inter_mi)
+```
+
+```{r}
+
+model_comparison <- data.frame(
+  Model = c("Model 1 (No Interaction)", "Model 2 (With Interaction)"),
+  LogLikelihood = c(-16991, -16981), 
+  Chisq = c("", 20.5),
+  Df = c("", 2),
+  PValue = c("", 0.00003536)        
+)
+
+model_comparison_table <- kable(model_comparison, 
+                                col.names = c("Model", "Log-Likelihood", "Chi-Squared", "Df", "P-Value"),
+                                align = 'c', 
+                                format = "html", 
+                                caption = "Comparison of Cox Mixed-Effects Models") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+                full_width = F, 
+                font_size = 14) %>%
+  row_spec(0, bold = TRUE, color = "white", background = "#4e79a7") %>%
+  column_spec(1, bold = TRUE) %>%
+  column_spec(2:5, width = "6em") %>%
+  add_header_above(c(" " = 1, "Model Comparison (Microbes)" = 4))
+
+model_comparison_table
+
+
+```
+
+
+### Isolate
+
+```{r}
+dataset$SurvObj <- with(dataset, Surv(measurement, mortality))
+
+model_null <- coxme(SurvObj ~ treatment + isolate + (1|SET), data = dataset)
+model_inter <- coxme(SurvObj ~ treatment * isolate + (1|SET), data = dataset)
+
+```
+
+
+```{r}
+summary(model_null)
+```
+P values below 0.5 and decreasing HR:
+
+isolateTE65     -2.20164670  0.1106208486038094     0.60848333  -3.62 0.00030000000
+isolateTE79     -2.19455535  0.1114080880189307     0.60845919  -3.61 0.00031000000
+isolateTE48     -2.16027612  0.1152932821393556     1.05162093  -2.05 0.04000000000
+isolateTE20     -1.54453799  0.2134104464963230     0.41295590  -3.74 0.00018000000
+isolateTE1      -1.20983585  0.2982462329014292     0.40235706  -3.01 0.00260000000
+isolateTE3      -1.08714799  0.3371767540063520     0.38470036  -2.83 0.00470000000
+
+```{r}
+# Sorting by hazards (1-exp)
+summary_cox <- summary(model_null)
+
+coef_table <- summary_cox$coefficients
+
+coef_df <- as.data.frame(coef_table)
+
+coef_df$exp_coef <- exp(coef_df$coef)
+
+filtered_df <- coef_df[coef_df$exp_coef < 1, ]
+
+sorted_filtered_df <- filtered_df[order(filtered_df$exp_coef), ]
+
+print(sorted_filtered_df)
+
+
+```
+
+
+```{r}
+summary(model_inter)
+```
+
+
+```{r}
+# Sorting by hazards (1-exp)
+summary_cox <- summary(model_inter)
+
+coef_table <- summary_cox$coefficients
+
+coef_df <- as.data.frame(coef_table)
+
+coef_df$exp_coef <- exp(coef_df$coef)
+
+filtered_df <- coef_df[coef_df$exp_coef < 1, ]
+
+sorted_filtered_df <- filtered_df[order(filtered_df$exp_coef), ]
+
+print(sorted_filtered_df)
+
+```
+
+Microbe Fungi & Isolates TE1 (fungi),  TE3 (fungi), TE20 (fungi) . TE45 (fungi), TE48 (fungi), TE59 (fungi), TE65 (fungi), TE79 (fungi)  are significantly effective in reducing drought stress impact on mortality.  
+
+
+```{r}
+anova(model_null, model_inter)
+
+```
+
+
+```{r}
+
+model_comparison <- data.frame(
+  Model = c("Model 3 (Isolates, No Interaction)", "Model 4 (Isolates, With Interaction)"),
+  LogLikelihood = c(-16570, -16244),
+  Chisq = c("", 652.16),
+  Df = c("", 72),
+  PValue = c("", 0.00000000000000022)     
+)
+
+model_comparison_table <- kable(model_comparison, 
+                                col.names = c("Model", "Log-Likelihood", "Chi-Squared", "Df", "P-Value"),
+                                align = 'c', 
+                                format = "html", 
+                                caption = "Comparison of Cox Mixed-Effects Models") %>%
+  kable_styling(bootstrap_options = c("striped", "hover", "condensed", "responsive"),
+                full_width = F, 
+                font_size = 14) %>%
+  row_spec(0, bold = TRUE, color = "white", background = "#4e79a7") %>%
+  column_spec(1, bold = TRUE) %>%
+  column_spec(2:5, width = "6em") %>%
+  add_header_above(c(" " = 1, "Model Comparison (Isolates)" = 4))
+
+model_comparison_table
+
+
+```
+
+
+
+##### Assumptions
+
+```{r}
+dataset$SurvObj <- with(dataset, Surv(measurement, mortality))
+
+
+model_res <- coxph(SurvObj ~ treatment + microbe + isolate, data = dataset)
+```
+
+
+```{r}
+
+# Proportional-hazards (PH) assumption
+ph_test <- cox.zph(model_res)
+ph_test
+ggcoxzph(ph_test)
+
+
+```
+```{r}
+# Testing influential observations 
+
+ggcoxdiagnostics(model_res, type = "deviance",
+                 linear.predictions = FALSE, ggtheme = theme_bw())
+
+```
+
+
+
+
+
